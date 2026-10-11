@@ -25,45 +25,35 @@ app.get("/search", async (req, res) => {
   }
 
   try {
-    // First get cookies from homepage
-    const homeRes = await fetch("https://www.pornhub.com/", {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36",
-        "Accept-Language": "en-US,en;q=0.9",
-      },
-    });
-
-    const setCookies = homeRes.headers.raw()["set-cookie"] || [];
-    let cookieStr = "age_verified=1; accessAgeDisclaimerPH=1; accessAgeDisclaimerUK=1; accessPH=1; platform=pc; cookiesBannerSeen=1; hasVisited=1";
-
-    if (setCookies.length > 0) {
-      const extra = setCookies.map(c => c.split(";")[0]).join("; ");
-      cookieStr += "; " + extra;
-    }
+    // Stronger headers + cookies
+    const headers = {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+      "Accept": "application/json, text/javascript, */*; q=0.01",
+      "Accept-Language": "en-US,en;q=0.9",
+      "Referer": "https://www.pornhub.com/",
+      "Origin": "https://www.pornhub.com",
+      "X-Requested-With": "XMLHttpRequest",
+      "Sec-Fetch-Dest": "empty",
+      "Sec-Fetch-Mode": "cors",
+      "Sec-Fetch-Site": "same-origin",
+      "Cookie": "age_verified=1; accessAgeDisclaimerPH=1; accessAgeDisclaimerUK=1; accessPH=1; platform=pc; cookiesBannerSeen=1; hasVisited=1; accessAgeDisclaimer=1"
+    };
 
     const searchUrl = `https://www.pornhub.com/webmasters/search?search=${encodeURIComponent(query)}&page=${page}&thumbsize=medium`;
 
-    const response = await fetch(searchUrl, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36",
-        "Accept": "application/json",
-        "Referer": "https://www.pornhub.com/",
-        "Origin": "https://www.pornhub.com",
-        "Cookie": cookieStr,
-      },
-    });
-
+    const response = await fetch(searchUrl, { headers });
     const text = await response.text();
 
-    if (text.trim().startsWith("<") || text.includes("COOKIE_DOMAIN")) {
+    if (text.trim().startsWith("<") || text.includes("COOKIE_DOMAIN") || text.includes("ageDisclaimer")) {
       return res.status(502).json({
-        error: "Pornhub blocked the request",
-        preview: text.substring(0, 200),
+        error: "Pornhub blocked the request (age gate)",
+        preview: text.substring(0, 250)
       });
     }
 
     const data = JSON.parse(text);
     res.json(data);
+
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
